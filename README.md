@@ -1,25 +1,30 @@
-# 2025-ProviderLookup
- 
-🩺 NPPES Importer
-This module downloads, normalizes, and ingests the latest CMS NPPES Data Dissemination File into a PostgreSQL database.
+# 🩺 NPPES Importer
 
-Automatically skips re-importing already processed months.
+This module downloads, normalizes, and imports the latest CMS NPPES Data Dissemination File into PostgreSQL.
 
-Normalizes providers, practice locations, and taxonomies into relational tables.
+## ✅ Features
 
-Logs import metadata in nppes_import_log to prevent duplicates.
+- Skips re-importing data if already logged for the month
+- Normalizes data into clean, relational tables
+- Tracks imports via `nppes_import_log`
+- Cleans up downloaded files after processing
 
-📦 Source: CMS NPPES Monthly ZIP
+## 📂 Tables Created
 
-Tables Created:
+- `providers`
+- `provider_addresses`
+- `provider_taxonomies`
+- `nppes_import_log`
 
-providers
+## 🚀 Usage
 
-provider_addresses
+```bash
+python nppes_importer.py
+ℹ️ Requirements
 
-provider_taxonomies
+Local PostgreSQL instance
+Python packages: psycopg2, requests, tqdm
 
-nppes_import_log
+➡️ Script
 
-➡️ Script: nppes_importer.py
-
+nppes_importer.py
