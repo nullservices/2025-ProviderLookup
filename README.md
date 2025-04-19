@@ -1,30 +1,78 @@
-# 🩺 NPPES Importer
+# 🩺 CMS Healthcare Data Importers
 
-This module downloads, normalizes, and imports the latest CMS NPPES Data Dissemination File into PostgreSQL.
+This project contains importers that automatically download, normalize, and load the latest CMS datasets into PostgreSQL:
+
+- **NPPES Importer** – National Plan and Provider Enumeration System  
+- **CMS DAC Importer** – Doctors and Clinicians National Downloadable File
+
+---
 
 ## ✅ Features
 
-- Skips re-importing data if already logged for the month
-- Normalizes data into clean, relational tables
-- Tracks imports via `nppes_import_log`
-- Cleans up downloaded files after processing
+- Automatically downloads latest files directly from CMS  
+- Skips already-imported months to prevent duplication  
+- Normalizes raw CSVs into relational PostgreSQL tables  
+- Logs each import in a monthly log table  
+- Cleans up temporary files after execution  
+
+---
 
 ## 📂 Tables Created
 
-- `providers`
-- `provider_addresses`
-- `provider_taxonomies`
-- `nppes_import_log`
+### NPPES Importer
+
+- `providers`  
+- `provider_addresses`  
+- `provider_taxonomies`  
+- `nppes_import_log`  
+
+### CMS DAC Importer
+
+- `cms_dac_clinicians`  
+- `cms_dac_practice_locations`  
+- `cms_dac_import_log`  
+
+---
 
 ## 🚀 Usage
 
+### Run the NPPES Importer
+
 ```bash
 python nppes_importer.py
-ℹ️ Requirements
+```
 
-Local PostgreSQL instance
-Python packages: psycopg2, requests, tqdm
+### Run the CMS DAC Importer
 
-➡️ Script
+```bash
+python cms_dac_importer.py
+```
 
-nppes_importer.py
+---
+
+## ℹ️ Requirements
+
+### Environment
+
+- A PostgreSQL instance accessible to your script
+- `.env` file with the following variables:
+
+```env
+DB_HOST=localhost
+DB_NAME=your_database
+DB_USER=your_username
+DB_PASSWORD=your_password
+```
+
+### Python Dependencies
+
+```bash
+pip install psycopg2 requests tqdm python-dotenv
+```
+
+---
+
+## 🔁 Automation
+
+Each importer is designed to be run **monthly** (via cron, GitHub Actions, etc.).  
+If the import for a given month is already present, it will automatically **skip** reprocessing that file.

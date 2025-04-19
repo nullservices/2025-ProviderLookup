@@ -8,6 +8,10 @@ import requests
 from tqdm import tqdm
 import psycopg2
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def download_file(url, save_path):
     print(f"Attempting to download from: {url}")
@@ -53,7 +57,7 @@ def cleanup_directory(directory):
 
 def create_normalized_tables(cur):
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS providers (
+    CREATE TABLE IF NOT EXISTS nppes_providers (
         npi VARCHAR(10) PRIMARY KEY,
         entity_type_code TEXT,
         org_name TEXT,
@@ -65,7 +69,7 @@ def create_normalized_tables(cur):
         is_sole_proprietor BOOLEAN
     );
 
-    CREATE TABLE IF NOT EXISTS provider_addresses (
+    CREATE TABLE IF NOT EXISTS nppes_provider_addresses (
         id SERIAL PRIMARY KEY,
         npi VARCHAR(10),
         address_type TEXT,
@@ -79,7 +83,7 @@ def create_normalized_tables(cur):
         fax TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS provider_taxonomies (
+    CREATE TABLE IF NOT EXISTS nppes_provider_taxonomies (
         id SERIAL PRIMARY KEY,
         npi VARCHAR(10),
         taxonomy_code TEXT,
@@ -109,7 +113,7 @@ def parse_date(value):
 def normalize_and_insert(cur, row):
     npi = row.get("NPI")
     cur.execute("""
-        INSERT INTO providers (npi, entity_type_code, org_name, first_name, last_name,
+        INSERT INTO nppes_providers (npi, entity_type_code, org_name, first_name, last_name,
             enumeration_date, last_update_date, gender, is_sole_proprietor)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (npi) DO NOTHING;
@@ -126,7 +130,7 @@ def normalize_and_insert(cur, row):
     ))
 
     cur.execute("""
-        INSERT INTO provider_addresses (npi, address_type, address_1, address_2, city, state, postal_code, country_code, phone, fax)
+        INSERT INTO nppes_provider_addresses (npi, address_type, address_1, address_2, city, state, postal_code, country_code, phone, fax)
         VALUES (%s, 'practice', %s, %s, %s, %s, %s, %s, %s, %s);
     """, (
         npi,
@@ -144,7 +148,7 @@ def normalize_and_insert(cur, row):
         code = row.get(f"Healthcare Provider Taxonomy Code_{i}")
         if code:
             cur.execute("""
-                INSERT INTO provider_taxonomies (npi, taxonomy_code, license_number, license_state, taxonomy_group, is_primary)
+                INSERT INTO nppes_provider_taxonomies (npi, taxonomy_code, license_number, license_state, taxonomy_group, is_primary)
                 VALUES (%s, %s, %s, %s, %s, %s);
             """, (
                 npi,
@@ -170,11 +174,11 @@ def main():
 
     try:
         conn = psycopg2.connect(
-            host="localhost",
-            database="postgres",
-            user="postgres",
-            password="postgres"
-        )
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD")
+    )
         cur = conn.cursor()
 
         create_normalized_tables(cur)
