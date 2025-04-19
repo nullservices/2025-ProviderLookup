@@ -3,11 +3,14 @@ import zipfile
 import requests
 import csv
 import psycopg2
+from psycopg2.extras import execute_batch
 from tqdm import tqdm
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
+
+CHUNK_SIZE = 10000  # Larger chunks for faster batch insert
 
 def get_latest_open_payments_url():
     base_url = "https://download.cms.gov/openpayments/"
@@ -45,7 +48,7 @@ def normalize_column(col):
 def create_table(cur, table_name, columns):
     col_defs = [f'"{normalize_column(col)}" TEXT' for col in columns]
     create_sql = f'''
-        CREATE TABLE IF NOT EXISTS {table_name} (
+        CREATE UNLOGGED TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             {', '.join(col_defs)}
         );
@@ -56,15 +59,15 @@ def insert_batch(cur, table_name, columns, batch):
     col_names = [f'"{normalize_column(col)}"' for col in columns]
     placeholders = ', '.join(['%s'] * len(columns))
     query = f"INSERT INTO {table_name} ({', '.join(col_names)}) VALUES ({placeholders})"
-    cur.executemany(query, batch)
+    execute_batch(cur, query, batch)
 
-def import_csv_to_table(cur, filepath, table_name, chunk_size=1000):
+def import_csv_to_table(cur, filepath, table_name, chunk_size=CHUNK_SIZE):
     with open(filepath, newline='', encoding="utf-8") as f:
         reader = csv.DictReader(f)
         columns = reader.fieldnames
         create_table(cur, table_name, columns)
         batch = []
-        for i, row in enumerate(reader, 1):
+        for row in reader:
             values = [row.get(col, None) for col in columns]
             batch.append(values)
             if len(batch) >= chunk_size:
@@ -72,6 +75,21 @@ def import_csv_to_table(cur, filepath, table_name, chunk_size=1000):
                 batch.clear()
         if batch:
             insert_batch(cur, table_name, columns, batch)
+
+def cleanup_files(data_dir, zip_path):
+    print("🧹 Cleaning up extracted CSV files and ZIP archive...")
+    for file in os.listdir(data_dir):
+        if file.endswith(".csv") or file.lower().endswith(".txt"):
+            try:
+                os.remove(os.path.join(data_dir, file))
+                print(f"🗑️ Deleted {file}")
+            except Exception as e:
+                print(f"⚠️ Failed to delete {file}: {e}")
+    try:
+        os.remove(zip_path)
+        print(f"🗑️ Deleted ZIP archive: {os.path.basename(zip_path)}")
+    except Exception as e:
+        print(f"⚠️ Failed to delete ZIP archive: {e}")
 
 def main():
     conn = None
@@ -90,7 +108,13 @@ def main():
         )
         cur = conn.cursor()
 
-        cur.execute("CREATE TABLE IF NOT EXISTS cms_open_payments_import_log (import_year TEXT PRIMARY KEY, file_name TEXT, imported_at TIMESTAMP DEFAULT now());")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS cms_open_payments_import_log (
+                import_year TEXT PRIMARY KEY,
+                file_name TEXT,
+                imported_at TIMESTAMP DEFAULT now()
+            );
+        """)
         cur.execute("SELECT 1 FROM cms_open_payments_import_log WHERE import_year = %s", (str(year),))
         if cur.fetchone():
             print(f"✅ Data for {year} already imported. Skipping.")
@@ -116,6 +140,8 @@ def main():
 
         cur.execute("INSERT INTO cms_open_payments_import_log (import_year, file_name) VALUES (%s, %s)", (str(year), filename))
         conn.commit()
+
+        cleanup_files(data_dir, zip_path)
 
     except Exception as e:
         print(f"❌ Error: {e}")
