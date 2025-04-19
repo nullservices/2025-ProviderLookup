@@ -3,16 +3,18 @@
 This project contains importers that automatically download, normalize, and load the latest CMS datasets into PostgreSQL:
 
 - **NPPES Importer** – National Plan and Provider Enumeration System  
-- **CMS DAC Importer** – Doctors and Clinicians National Downloadable File
+- **CMS DAC Importer** – Doctors and Clinicians National Downloadable File  
+- **CMS Open Payments Importer** – General Payments, Research Payments, and Physician Ownership
 
 ---
 
 ## ✅ Features
 
 - Automatically downloads latest files directly from CMS  
-- Skips already-imported months to prevent duplication  
+- Skips already-imported months or years to prevent duplication  
 - Normalizes raw CSVs into relational PostgreSQL tables  
-- Logs each import in a monthly log table  
+- Logs each import in an audit table  
+- Imports data in chunks to reduce memory usage  
 - Cleans up temporary files after execution  
 
 ---
@@ -32,6 +34,13 @@ This project contains importers that automatically download, normalize, and load
 - `cms_dac_practice_locations`  
 - `cms_dac_import_log`  
 
+### CMS Open Payments Importer
+
+- `cms_open_payments_general_all`  
+- `cms_open_payments_research_all`  
+- `cms_open_payments_ownership_all`  
+- `cms_open_payments_import_log`  
+
 ---
 
 ## 🚀 Usage
@@ -46,6 +55,12 @@ python nppes_importer.py
 
 ```bash
 python cms_dac_importer.py
+```
+
+### Run the CMS Open Payments Importer
+
+```bash
+python cms_open_payments_importer.py
 ```
 
 ---
@@ -74,5 +89,5 @@ pip install psycopg2 requests tqdm python-dotenv
 
 ## 🔁 Automation
 
-Each importer is designed to be run **monthly** (via cron, GitHub Actions, etc.).  
-If the import for a given month is already present, it will automatically **skip** reprocessing that file.
+Each importer is designed to be run **monthly** (or yearly for Open Payments).  
+If the data for a given period has already been imported, the importer will automatically **skip** reprocessing that file.
